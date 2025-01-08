@@ -3,144 +3,177 @@
   <head>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
     <style>
-      #sample {
-        background-color: red;
-        width: 300px;
-        height: 300px;
-        transition: opacity 0.3s ease; /* Add smooth transition */
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background-color: #f0f2f5;
+        margin: 0;
+        padding: 20px;
       }
 
-      #value-display {
-        font-size: 36px;
-        margin: 20px 0;
-        font-family: Arial, sans-serif;
-        color: #333;
-        text-align: center;
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
       }
 
       #dashboard {
-        width: 300px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 20px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 15px;
         padding: 20px;
-        border: 2px solid #ccc;
-        border-radius: 8px;
-        background-color: #f5f5f5;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      #value-display {
+        font-size: 48px;
+        font-weight: bold;
+        color: #2196f3;
+        text-align: center;
         margin: 20px 0;
       }
 
       .progress-bar {
-        width: 100%;
-        height: 20px;
-        background-color: #ddd;
-        border-radius: 10px;
-        overflow: hidden;
+        height: 25px;
+        background: #e0e0e0;
+        border-radius: 12.5px;
+        margin: 20px 0;
       }
 
       .progress-fill {
         height: 100%;
-        background-color: #4caf50;
-        transition: width 0.3s ease;
-        width: 0%;
+        border-radius: 12.5px;
+        transition: width 0.5s ease-in-out;
+        background: linear-gradient(90deg, #2196f3, #4caf50);
       }
 
-      .timestamp {
-        font-size: 14px;
-        color: #666;
-        text-align: right;
-        margin-top: 10px;
-      }
-
-      #data-display {
-        width: 80%;
-        max-width: 600px;
-        margin: 20px auto;
-        padding: 20px;
+      .moisture-status {
+        text-align: center;
+        font-size: 20px;
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
       }
 
       #serial-output {
         width: 100%;
-        height: 400px;
-        padding: 10px;
-        font-family: monospace;
-        background-color: #1e1e1e;
-        color: #00ff00;
-        border: 1px solid #333;
-        border-radius: 4px;
-        resize: vertical;
-        overflow-y: auto;
+        height: 200px;
+        background: #1a1a1a;
+        color: #4caf50;
+        border: none;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: "Consolas", monospace;
       }
 
-      h1 {
-        text-align: center;
-        color: #333;
-        font-family: Arial, sans-serif;
+      .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
       }
 
-      .moisture-status {
-        font-size: 18px;
-        margin: 10px 0;
-        color: #333;
-        font-weight: bold;
-      }
-
-      .progress-fill {
-        background: linear-gradient(to right, #ff4444, #44ff44);
+      .connection-status {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 8px 15px;
+        border-radius: 20px;
+        background: #4caf50;
+        color: white;
+        font-size: 14px;
       }
     </style>
   </head>
   <body>
-    <h1>Soil Moisture Monitor</h1>
-    <div id="dashboard">
-      <div id="value-display">
-        Moisture Level: <span id="percentage">0</span>%
+    <div class="container">
+      <div id="connection-status" class="connection-status">
+        <span class="status-indicator"></span>
+        Connected
       </div>
-      <div class="progress-bar">
-        <div id="progress" class="progress-fill"></div>
-      </div>
-      <div class="moisture-status" id="moisture-status">Status: --</div>
-      <div class="timestamp" id="last-update">Last update: --</div>
-    </div>
 
-    <div id="data-display">
-      <h2>Sensor Log</h2>
-      <textarea id="serial-output" readonly></textarea>
+      <div id="dashboard">
+        <h1>Soil Moisture Monitor</h1>
+        <div id="value-display"><span id="percentage">0</span>%</div>
+        <div class="progress-bar">
+          <div id="progress" class="progress-fill"></div>
+        </div>
+        <div class="moisture-status" id="moisture-status">Status: --</div>
+      </div>
+
+      <div class="card">
+        <h2>Sensor Log</h2>
+        <textarea id="serial-output" readonly></textarea>
+      </div>
     </div>
 
     <script>
       var socket = io();
       const serialOutput = document.getElementById("serial-output");
+      let isConnected = false;
 
-      function getMoistureStatus(percentage) {
-        if (percentage < 20) return "Very Dry - Needs Water!";
-        if (percentage < 40) return "Dry - Consider Watering";
-        if (percentage < 60) return "Moderate";
-        if (percentage < 80) return "Moist";
-        return "Very Moist";
+      function updateConnectionStatus(connected) {
+        const statusEl = document.getElementById("connection-status");
+        if (connected) {
+          statusEl.style.background = "#4CAF50";
+          statusEl.innerHTML =
+            '<span class="status-indicator"></span>Connected';
+        } else {
+          statusEl.style.background = "#f44336";
+          statusEl.innerHTML =
+            '<span class="status-indicator"></span>Disconnected';
+        }
       }
+
+      socket.on("connect", () => {
+        isConnected = true;
+        updateConnectionStatus(true);
+      });
+
+      socket.on("disconnect", () => {
+        isConnected = false;
+        updateConnectionStatus(false);
+      });
 
       socket.on("data", function (data) {
         const timestamp = new Date().toLocaleTimeString();
         const percentage = parseInt(data);
 
-        // Update moisture status
-        const status = getMoistureStatus(percentage);
-        document.getElementById(
-          "moisture-status"
-        ).textContent = `Status: ${status}`;
+        if (isNaN(percentage)) {
+          console.error("Invalid data received:", data);
+          return;
+        }
 
-        // Update progress bar and percentage
+        // Update UI elements
         document.getElementById("percentage").textContent = percentage;
-        document.getElementById("progress").style.width = percentage + "%";
+        document.getElementById("progress").style.width = `${percentage}%`;
 
-        // Update log
-        const formattedData = `[${timestamp}] Moisture Level: ${percentage}% - ${status}\n`;
-        serialOutput.value += formattedData;
-        serialOutput.scrollTop = serialOutput.scrollHeight;
+        // Update moisture status with color coding
+        const status = getMoistureStatus(percentage);
+        const statusEl = document.getElementById("moisture-status");
+        statusEl.textContent = status;
+        statusEl.style.background = getMoistureStatusColor(percentage);
+        statusEl.style.color = percentage > 60 ? "white" : "black";
 
-        // Update timestamp
-        document.getElementById(
-          "last-update"
-        ).textContent = `Last update: ${timestamp}`;
+        // Add to log with color coding
+        const logEntry = `[${timestamp}] ${percentage}% - ${status}\n`;
+        serialOutput.value = logEntry + serialOutput.value;
       });
+
+      function getMoistureStatusColor(percentage) {
+        if (percentage < 20) return "#ff5252";
+        if (percentage < 40) return "#ffd740";
+        if (percentage < 60) return "#69f0ae";
+        if (percentage < 80) return "#40c4ff";
+        return "#2196F3";
+      }
     </script>
   </body>
 </html>
