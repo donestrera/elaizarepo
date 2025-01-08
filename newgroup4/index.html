@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <style>
+      #sample {
+        background-color: red;
+        width: 300px;
+        height: 300px;
+        transition: opacity 0.3s ease; /* Add smooth transition */
+      }
+
+      #value-display {
+        font-size: 36px;
+        margin: 20px 0;
+        font-family: Arial, sans-serif;
+        color: #333;
+        text-align: center;
+      }
+
+      #dashboard {
+        width: 300px;
+        padding: 20px;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        background-color: #f5f5f5;
+        margin: 20px 0;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background-color: #4caf50;
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .timestamp {
+        font-size: 14px;
+        color: #666;
+        text-align: right;
+        margin-top: 10px;
+      }
+
+      #data-display {
+        width: 80%;
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+      }
+
+      #serial-output {
+        width: 100%;
+        height: 400px;
+        padding: 10px;
+        font-family: monospace;
+        background-color: #1e1e1e;
+        color: #00ff00;
+        border: 1px solid #333;
+        border-radius: 4px;
+        resize: vertical;
+        overflow-y: auto;
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+        font-family: Arial, sans-serif;
+      }
+
+      .moisture-status {
+        font-size: 18px;
+        margin: 10px 0;
+        color: #333;
+        font-weight: bold;
+      }
+
+      .progress-fill {
+        background: linear-gradient(to right, #ff4444, #44ff44);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Soil Moisture Monitor</h1>
+    <div id="dashboard">
+      <div id="value-display">
+        Moisture Level: <span id="percentage">0</span>%
+      </div>
+      <div class="progress-bar">
+        <div id="progress" class="progress-fill"></div>
+      </div>
+      <div class="moisture-status" id="moisture-status">Status: --</div>
+      <div class="timestamp" id="last-update">Last update: --</div>
+    </div>
+
+    <div id="data-display">
+      <h2>Sensor Log</h2>
+      <textarea id="serial-output" readonly></textarea>
+    </div>
+
+    <script>
+      var socket = io();
+      const serialOutput = document.getElementById("serial-output");
+
+      function getMoistureStatus(percentage) {
+        if (percentage < 20) return "Very Dry - Needs Water!";
+        if (percentage < 40) return "Dry - Consider Watering";
+        if (percentage < 60) return "Moderate";
+        if (percentage < 80) return "Moist";
+        return "Very Moist";
+      }
+
+      socket.on("data", function (data) {
+        const timestamp = new Date().toLocaleTimeString();
+        const percentage = parseInt(data);
+
+        // Update moisture status
+        const status = getMoistureStatus(percentage);
+        document.getElementById(
+          "moisture-status"
+        ).textContent = `Status: ${status}`;
+
+        // Update progress bar and percentage
+        document.getElementById("percentage").textContent = percentage;
+        document.getElementById("progress").style.width = percentage + "%";
+
+        // Update log
+        const formattedData = `[${timestamp}] Moisture Level: ${percentage}% - ${status}\n`;
+        serialOutput.value += formattedData;
+        serialOutput.scrollTop = serialOutput.scrollHeight;
+
+        // Update timestamp
+        document.getElementById(
+          "last-update"
+        ).textContent = `Last update: ${timestamp}`;
+      });
+    </script>
+  </body>
+</html>
