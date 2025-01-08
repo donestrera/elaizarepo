@@ -17,7 +17,12 @@ const server = http.createServer((req, res) => {
 });
 
 // Then initialize Socket.IO with the server
-const io = require('socket.io')(server);
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 // Create parser
 const parser = new SerialPort.parsers.Readline({
