@@ -9,12 +9,22 @@ const CONFIG = {
     webPort: 3000
 };
 
+// First create the HTTP server
+const index = fs.readFileSync('index.html');
+const server = http.createServer((req, res) => {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end(index);
+});
+
+// Then initialize Socket.IO with the server
+const io = require('socket.io')(server);
+
 // Create parser
 const parser = new SerialPort.parsers.Readline({
     delimiter: '\r\n'
 });
 
-// Setup serial port with error handling
+// Setup serial port
 const port = new SerialPort(CONFIG.serialPort, {
     baudRate: CONFIG.baudRate,
     dataBits: 8,
@@ -50,15 +60,7 @@ parser.on('data', (data) => {
 
 port.pipe(parser);
 
-// Setup web server and Socket.IO
-const index = fs.readFileSync('index.html');
-const app = http.createServer((req, res) => {
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.end(index);
-});
-
-const io = require('socket.io')(app);
-
+// Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log('Web client connected');
     socket.on('disconnect', () => {
@@ -66,7 +68,8 @@ io.on('connection', (socket) => {
     });
 });
 
-app.listen(CONFIG.webPort, () => {
+// Start the server
+server.listen(CONFIG.webPort, () => {
     console.log(`Server running at http://localhost:${CONFIG.webPort}/`);
 });
 
